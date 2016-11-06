@@ -2,7 +2,8 @@ package com.airbnb.android.airmapview.listeners;
 
 import android.view.View;
 
-public interface InfoWindowCreator {
+import com.airbnb.android.airmapview.AirMapMarker;
 
-  View createInfoWindow(long id);
+public interface InfoWindowCreator {
+  View createInfoWindow(AirMapMarker<?> airMarker);
 }

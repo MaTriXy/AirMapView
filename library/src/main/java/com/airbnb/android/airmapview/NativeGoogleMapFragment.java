@@ -1,19 +1,23 @@
 package com.airbnb.android.airmapview;
 
+import android.graphics.Bitmap;
 import android.graphics.Point;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
 import com.airbnb.android.airmapview.listeners.InfoWindowCreator;
 import com.airbnb.android.airmapview.listeners.OnCameraChangeListener;
-import com.airbnb.android.airmapview.listeners.OnLatLngScreenLocationCallback;
 import com.airbnb.android.airmapview.listeners.OnInfoWindowClickListener;
+import com.airbnb.android.airmapview.listeners.OnLatLngScreenLocationCallback;
 import com.airbnb.android.airmapview.listeners.OnMapBoundsCallback;
 import com.airbnb.android.airmapview.listeners.OnMapClickListener;
 import com.airbnb.android.airmapview.listeners.OnMapLoadedListener;
 import com.airbnb.android.airmapview.listeners.OnMapMarkerClickListener;
+import com.airbnb.android.airmapview.listeners.OnMapMarkerDragListener;
+import com.airbnb.android.airmapview.listeners.OnSnapshotReadyListener;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -25,11 +29,22 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.Polygon;
+import com.google.maps.android.geojson.GeoJsonLayer;
+import com.google.maps.android.geojson.GeoJsonPolygonStyle;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class NativeGoogleMapFragment extends SupportMapFragment implements AirMapInterface {
-
   private GoogleMap googleMap;
   private OnMapLoadedListener onMapLoadedListener;
+  private boolean myLocationEnabled;
+  private GeoJsonLayer layerOnMap;
+  private final Map<Marker, AirMapMarker<?>> markers = new HashMap<>();
 
   public static NativeGoogleMapFragment newInstance(AirGoogleMapOptions options) {
     return new NativeGoogleMapFragment().setArguments(options);
@@ -41,7 +56,7 @@ public class NativeGoogleMapFragment extends SupportMapFragment implements AirMa
   }
 
   @Override public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                           Bundle savedInstanceState) {
+      Bundle savedInstanceState) {
     View v = super.onCreateView(inflater, container, savedInstanceState);
 
     init();
@@ -51,8 +66,7 @@ public class NativeGoogleMapFragment extends SupportMapFragment implements AirMa
 
   public void init() {
     getMapAsync(new OnMapReadyCallback() {
-      @Override
-      public void onMapReady(GoogleMap googleMap) {
+      @Override public void onMapReady(GoogleMap googleMap) {
         if (googleMap != null && getActivity() != null) {
           NativeGoogleMapFragment.this.googleMap = googleMap;
           UiSettings settings = NativeGoogleMapFragment.this.googleMap.getUiSettings();
@@ -73,28 +87,42 @@ public class NativeGoogleMapFragment extends SupportMapFragment implements AirMa
   }
 
   @Override public void clearMarkers() {
+    markers.clear();
     googleMap.clear();
   }
 
-  @Override public void addMarker(AirMapMarker airMarker) {
-    airMarker.addToGoogleMap(googleMap);
+  @Override public void addMarker(AirMapMarker<?> airMarker) {
+    Marker marker = googleMap.addMarker(airMarker.getMarkerOptions());
+    airMarker.setGoogleMarker(marker);
+    markers.put(marker, airMarker);
   }
 
-  @Override public void removeMarker(AirMapMarker marker) {
-    marker.removeFromGoogleMap();
+  @Override public void moveMarker(AirMapMarker<?> marker, LatLng to) {
+    marker.setLatLng(to);
+    marker.getMarker().setPosition(to);
+  }
+
+  @Override public void removeMarker(AirMapMarker<?> marker) {
+    Marker nativeMarker = marker.getMarker();
+    if (nativeMarker != null) {
+      nativeMarker.remove();
+      markers.remove(nativeMarker);
+    }
   }
 
   @Override public void setOnInfoWindowClickListener(final OnInfoWindowClickListener listener) {
     googleMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
-      @Override
-      public void onInfoWindowClick(Marker marker) {
-        listener.onInfoWindowClick(marker);
+      @Override public void onInfoWindowClick(Marker marker) {
+        AirMapMarker<?> airMarker = markers.get(marker);
+        if (airMarker != null) {
+          listener.onInfoWindowClick(airMarker);
+        }
       }
     });
   }
 
   @Override public void setInfoWindowCreator(GoogleMap.InfoWindowAdapter adapter,
-                                             InfoWindowCreator creator) {
+      InfoWindowCreator creator) {
     googleMap.setInfoWindowAdapter(adapter);
   }
 
@@ -111,13 +139,13 @@ public class NativeGoogleMapFragment extends SupportMapFragment implements AirMa
   }
 
   @Override public void drawCircle(LatLng latLng, int radius, int borderColor, int borderWidth,
-                         int fillColor) {
+      int fillColor) {
     googleMap.addCircle(new CircleOptions()
-                             .center(latLng)
-                             .strokeColor(borderColor)
-                             .strokeWidth(borderWidth)
-                             .fillColor(fillColor)
-                             .radius(radius));
+        .center(latLng)
+        .strokeColor(borderColor)
+        .strokeWidth(borderWidth)
+        .fillColor(fillColor)
+        .radius(radius));
   }
 
   @Override public void getMapScreenBounds(OnMapBoundsCallback callback) {
@@ -132,8 +160,7 @@ public class NativeGoogleMapFragment extends SupportMapFragment implements AirMa
     builder.include(projection.fromScreenLocation(
         new Point(hOffset, getView().getHeight() - vOffset))); // bottom-left
     builder.include(projection.fromScreenLocation(new Point(getView().getWidth() - hOffset,
-                                                            getView().getHeight()
-                                                            - vOffset))); // bottom-right
+        getView().getHeight() - vOffset))); // bottom-right
 
     callback.onMapBoundsReady(builder.build());
   }
@@ -167,12 +194,11 @@ public class NativeGoogleMapFragment extends SupportMapFragment implements AirMa
     return (int) googleMap.getCameraPosition().zoom;
   }
 
-  @Override public void setOnCameraChangeListener(final OnCameraChangeListener onCameraChangeListener) {
+  @Override
+  public void setOnCameraChangeListener(final OnCameraChangeListener onCameraChangeListener) {
     googleMap.setOnCameraChangeListener(new GoogleMap.OnCameraChangeListener() {
-
-      @Override
-      public void onCameraChange(CameraPosition cameraPosition) {
-        // camera change can occur programatically.
+      @Override public void onCameraChange(CameraPosition cameraPosition) {
+        // camera change can occur programmatically.
         if (isResumed()) {
           onCameraChangeListener.onCameraChanged(cameraPosition.target, (int) cameraPosition.zoom);
         }
@@ -194,10 +220,35 @@ public class NativeGoogleMapFragment extends SupportMapFragment implements AirMa
 
   @Override public void setOnMarkerClickListener(final OnMapMarkerClickListener listener) {
     googleMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
-      @Override
-      public boolean onMarkerClick(Marker marker) {
-        listener.onMapMarkerClick(marker);
+      @Override public boolean onMarkerClick(Marker marker) {
+        AirMapMarker<?> airMarker = markers.get(marker);
+        if (airMarker != null) {
+          listener.onMapMarkerClick(airMarker);
+        }
         return false;
+      }
+    });
+  }
+
+  @Override public void setOnMarkerDragListener(final OnMapMarkerDragListener listener) {
+    if (listener == null) {
+      googleMap.setOnMarkerDragListener(null);
+      return;
+    }
+    googleMap.setOnMarkerDragListener(new GoogleMap.OnMarkerDragListener() {
+      @Override
+      public void onMarkerDragStart(Marker marker) {
+        listener.onMapMarkerDragStart(marker);
+      }
+
+      @Override
+      public void onMarkerDrag(Marker marker) {
+        listener.onMapMarkerDrag(marker);
+      }
+
+      @Override
+      public void onMarkerDragEnd(Marker marker) {
+        listener.onMapMarkerDragEnd(marker);
       }
     });
   }
@@ -216,15 +267,63 @@ public class NativeGoogleMapFragment extends SupportMapFragment implements AirMa
   }
 
   @Override public void setMyLocationEnabled(boolean enabled) {
-    googleMap.setMyLocationEnabled(enabled);
+    if (myLocationEnabled != enabled) {
+      myLocationEnabled = enabled;
+      RuntimePermissionUtils.checkLocationPermissions(getActivity(), this);
+    }
   }
 
-  @Override public void addPolyline(AirMapPolyline polyline) {
+  @Override public void onLocationPermissionsGranted() {
+    //noinspection MissingPermission
+    googleMap.setMyLocationEnabled(myLocationEnabled);
+  }
+
+  @Override public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+      @NonNull int[] grantResults) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    RuntimePermissionUtils.onRequestPermissionsResult(this, requestCode, grantResults);
+  }
+
+  @Override public boolean isMyLocationEnabled() {
+    return googleMap.isMyLocationEnabled();
+  }
+
+  @Override public void setMapToolbarEnabled(boolean enabled) {
+    googleMap.getUiSettings().setMapToolbarEnabled(enabled);
+  }
+
+  @Override public <T> void addPolyline(AirMapPolyline<T> polyline) {
     polyline.addToGoogleMap(googleMap);
   }
 
-  @Override public void removePolyline(AirMapPolyline polyline) {
+  @Override public <T> void removePolyline(AirMapPolyline<T> polyline) {
     polyline.removeFromGoogleMap();
+  }
+
+  @Override public <T> void addPolygon(AirMapPolygon<T> polygon) {
+    Polygon googlePolygon = googleMap.addPolygon(polygon.getPolygonOptions());
+    polygon.setGooglePolygon(googlePolygon);
+  }
+
+  @Override public <T> void removePolygon(AirMapPolygon<T> polygon) {
+    Polygon nativePolygon = polygon.getGooglePolygon();
+    if (nativePolygon != null) {
+      nativePolygon.remove();
+    }
+  }
+
+  @Override public void setMapType(MapType type) {
+    int nativeType;
+    if (type == MapType.MAP_TYPE_NORMAL) {
+      nativeType = GoogleMap.MAP_TYPE_NORMAL;
+    } else if (type == MapType.MAP_TYPE_SATELLITE) {
+      nativeType = GoogleMap.MAP_TYPE_SATELLITE;
+    } else if (type == MapType.MAP_TYPE_TERRAIN) {
+      nativeType = GoogleMap.MAP_TYPE_TERRAIN;
+    } else {
+      nativeType = GoogleMap.MAP_TYPE_NORMAL;
+    }
+    googleMap.setMapType(nativeType);
   }
 
   /**
@@ -234,5 +333,39 @@ public class NativeGoogleMapFragment extends SupportMapFragment implements AirMa
    */
   public GoogleMap getGoogleMap() {
     return googleMap;
+  }
+
+  @Override
+  public void setGeoJsonLayer(final AirMapGeoJsonLayer airMapGeoJsonLayer) throws JSONException {
+    // clear any existing layers
+    clearGeoJsonLayer();
+
+    layerOnMap = new GeoJsonLayer(googleMap, new JSONObject(airMapGeoJsonLayer.geoJson));
+    GeoJsonPolygonStyle style = layerOnMap.getDefaultPolygonStyle();
+    style.setStrokeColor(airMapGeoJsonLayer.strokeColor);
+    style.setStrokeWidth(airMapGeoJsonLayer.strokeWidth);
+    style.setFillColor(airMapGeoJsonLayer.fillColor);
+    layerOnMap.addLayerToMap();
+  }
+
+  @Override public void clearGeoJsonLayer() {
+    if (layerOnMap == null) {
+      return;
+    }
+    layerOnMap.removeLayerFromMap();
+    layerOnMap = null;
+  }
+
+  @Override public void getSnapshot(final OnSnapshotReadyListener listener) {
+    getGoogleMap().snapshot(new GoogleMap.SnapshotReadyCallback() {
+      @Override public void onSnapshotReady(Bitmap bitmap) {
+        listener.onSnapshotReady(bitmap);
+      }
+    });
+  }
+
+  @Override public void onDestroyView() {
+    clearGeoJsonLayer();
+    super.onDestroyView();
   }
 }

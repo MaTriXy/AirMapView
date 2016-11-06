@@ -8,8 +8,16 @@
 
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!-- not needed as of api 23 -->
+    <!-- according to https://developers.google.com/maps/documentation/android-api/config it will
+         be removed in a future releaes completely
+    -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="22" />
+
 
     <application
         android:allowBackup="true"
@@ -27,14 +35,29 @@
         </activity>
 
         <!--
-            DISCLAIMER: The Google Maps API Key below is for test purposes, therefore not intended
-            to be used in production/real apps. Please DO NOT copy-paste it as it may stop working
+            DISCLAIMER: The Map Provider API Keys below are for test purposes, therefore not intended
+            to be used in production/real apps. Please DO NOT copy-paste it as they may stop working
             at any moment with no further notice
         -->
 
+        <!-- Google Maps -->
         <meta-data
             android:name="com.google.android.maps.v2.API_KEY"
             android:value="AIzaSyB129WN9KPdWsTg2Kz0kQ3XheA_nec03XI" />
+
+        <!--
+         Mapbox
+
+         To get free Mapbox maps for your app, please visit https://www.mapbox.com/signup/
+        -->
+        <meta-data
+            android:name="com.mapbox.ACCESS_TOKEN"
+            android:value="pk.eyJ1IjoiYmxlZWdlIiwiYSI6ImZjMDczZjc5N2U0NzFkNWVkYWUzNjkzZTY5NjU4ZDFlIn0.vsxMenwHU5mLe65GULWGQg"/>
+
+        <meta-data
+            android:name="com.mapbox.MAP_ID"
+            android:value="mapbox.streets"/>
+
     </application>
 
 </manifest>

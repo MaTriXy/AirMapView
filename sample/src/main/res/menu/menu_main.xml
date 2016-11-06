@@ -8,8 +8,18 @@
           android:orderInCategory="100"
           app:showAsAction="never"/>
 
-    <item android:id="@+id/action_web_map"
-          android:title="Use Web Map"
+    <item android:id="@+id/action_google_web_map"
+          android:title="Use Google Web Map"
+          android:orderInCategory="100"
+          app:showAsAction="never"/>
+
+    <item android:id="@+id/action_google_china_web_map"
+        android:title="Use Google China Web Map"
+        android:orderInCategory="100"
+        app:showAsAction="never"/>
+
+    <item android:id="@+id/action_mapbox_map"
+          android:title="Use MapBox Map"
           android:orderInCategory="100"
           app:showAsAction="never"/>
 
@@ -17,4 +27,21 @@
           android:title="Clear logs"
           android:orderInCategory="100"
           app:showAsAction="never"/>
+
+    <item android:id="@+id/add_geojson_layer"
+        android:title="Add GeoJson layer"
+        android:orderInCategory="100"
+        app:showAsAction="never"/>
+
+    <item android:id="@+id/remove_geojson_layer"
+        android:title="Remove GeoJson layer"
+        android:orderInCategory="100"
+        app:showAsAction="never"/>
+
+    <item android:id="@+id/take_snapshot"
+        android:title="Take snapshot"
+        android:orderInCategory="100"
+        app:showAsAction="never"/>
+
 </menu>
+
