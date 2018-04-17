@@ -72,7 +72,7 @@ public class NativeGoogleMapFragment extends SupportMapFragment implements AirMa
           UiSettings settings = NativeGoogleMapFragment.this.googleMap.getUiSettings();
           settings.setZoomControlsEnabled(false);
           settings.setMyLocationButtonEnabled(false);
-          setMyLocationEnabled(true);
+          setMyLocationEnabled(myLocationEnabled);
 
           if (onMapLoadedListener != null) {
             onMapLoadedListener.onMapLoaded();
@@ -269,7 +269,9 @@ public class NativeGoogleMapFragment extends SupportMapFragment implements AirMa
   @Override public void setMyLocationEnabled(boolean enabled) {
     if (myLocationEnabled != enabled) {
       myLocationEnabled = enabled;
-      RuntimePermissionUtils.checkLocationPermissions(getActivity(), this);
+      if (!RuntimePermissionUtils.checkLocationPermissions(getActivity(), this)) {
+        myLocationEnabled = false;
+      }
     }
   }
 
@@ -286,6 +288,10 @@ public class NativeGoogleMapFragment extends SupportMapFragment implements AirMa
 
   @Override public boolean isMyLocationEnabled() {
     return googleMap.isMyLocationEnabled();
+  }
+
+  @Override public void setMyLocationButtonEnabled(boolean enabled) {
+    googleMap.getUiSettings().setMyLocationButtonEnabled(enabled);
   }
 
   @Override public void setMapToolbarEnabled(boolean enabled) {
