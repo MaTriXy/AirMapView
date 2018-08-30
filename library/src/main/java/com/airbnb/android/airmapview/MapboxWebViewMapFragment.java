@@ -20,21 +20,23 @@ public class MapboxWebViewMapFragment extends WebViewMapFragment {
 
     MapboxWebMapType mapType = MapboxWebMapType.fromBundle(getArguments());
     webView.loadDataWithBaseURL(mapType.getDomain(), mapType.getMapData(getResources()),
-            "text/html", "base64", null);
+        "text/html", "base64", null);
 
     return view;
   }
 
   @Override public void setMapType(MapType type) {
-    String mapBoxType;
-    if (type == MapType.MAP_TYPE_NORMAL) {
-      mapBoxType = "mapbox.streets";
-    } else if (type == MapType.MAP_TYPE_SATELLITE) {
-      mapBoxType = "mapbox.satellite";
-    } else if (type == MapType.MAP_TYPE_TERRAIN) {
-      mapBoxType = "mapbox.outdoors";
-    } else {
-      mapBoxType = "mapbox.streets";
+    String mapBoxType = null;
+    switch (type) {
+      case MAP_TYPE_NORMAL:
+        mapBoxType = "mapbox.streets";
+        break;
+      case MAP_TYPE_SATELLITE:
+        mapBoxType = "mapbox.satellite";
+        break;
+      case MAP_TYPE_TERRAIN:
+        mapBoxType = "mapbox.outdoors";
+        break;
     }
     webView.loadUrl(String.format(Locale.US, "javascript:setMapTypeId(\"%1$s\");", mapBoxType));
   }

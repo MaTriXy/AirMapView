@@ -7,7 +7,8 @@ public class WebAirMapViewBuilder implements AirMapViewBuilder<WebViewMapFragmen
 
   private AirMapType options;
 
-  @Override public AirMapViewBuilder<WebViewMapFragment, AirMapType> withOptions(AirMapType options) {
+  @Override
+  public AirMapViewBuilder<WebViewMapFragment, AirMapType> withOptions(AirMapType options) {
     this.options = options;
     return this;
   }
@@ -26,6 +27,9 @@ public class WebAirMapViewBuilder implements AirMapViewBuilder<WebViewMapFragmen
     }
     if (options instanceof GoogleChinaMapType) {
       return GoogleChinaWebViewMapFragment.newInstance(options);
+    }
+    if (options instanceof LeafletMapType) {
+      return LeafletWebViewMapFragment.newInstance(options);
     }
     return null;
   }
